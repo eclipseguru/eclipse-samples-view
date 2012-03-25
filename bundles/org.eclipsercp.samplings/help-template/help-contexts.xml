@@ -1,0 +1,16 @@
+<contexts> 
+  <context id="dialog"> 
+    <description>
+The Samples Manager is a tool to help you manage the code for each sample of the 
+Equinox OSGi book. The manager shows samples for all chapters and parts of the book that have associated projects. Select a sample and 
+click <b>Import</b> to load all related projects into the workspace. The Samples Manager also supports comparing the current workspace to the set of resources for a sample. 
+For example, if your workspace contains the projects for Chapter 5, you can see all the changes 
+required for Chapter 6 by selecting Chapter 6 in the list and clicking <b>Compare</b>. This gives you 
+a standard Eclipse compare editor.  Using the compare editor you can copy the Chapter 6 changes 
+into the workspace.
+    </description> 
+    <topic href="help/index" label="Overview of the tool"/>
+    <topic href="help/importing.html" label="Importing Code"/>
+    <topic href="help/comparing.html" label="Comparing Code"/>         
+  </context> 
+</contexts> 

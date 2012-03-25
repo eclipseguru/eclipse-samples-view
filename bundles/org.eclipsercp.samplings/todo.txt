@@ -1,0 +1,7 @@
+- method for creating projects from directories directly from the samples plug-in. The problem
+here is how to explain to people how to edit the projects inside the samples plug-in.
+- option to copy back to source when debugging to edit the code. Dev mode option.
+- resource listener to reset decorators when projects are manually deleted.
+- import should include more context to tell if the loaded samples are from the same samples group
+- enablement for the compare and import actions.
+- junits???

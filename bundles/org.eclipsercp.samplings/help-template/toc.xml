@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+
+<toc label="Equinox Book Samples Manager">
+	<topic label="Equinox Book Samples Manager"  href="help/index.html"> 
+	  <topic label="Importing a Code Sample" href="help/importing.html"/>
+      <topic label="Comparing Code" href="help/comparing.html"/> 
+	</topic>
+</toc>
