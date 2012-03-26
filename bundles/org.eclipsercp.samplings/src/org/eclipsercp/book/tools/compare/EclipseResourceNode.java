@@ -36,180 +36,190 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 
 /**
- * A resource node that is not buffered. Changes made to it are applied directly 
+ * A resource node that is not buffered. Changes made to it are applied directly
  * to the underlying resource.
  * 
  * @since 3.0
  */
 public class EclipseResourceNode extends ResourceNode {
 
-    private boolean fDirty= false;
-    private IFile fDeleteFile;
-    
-    /**
-     * Creates a <code>ResourceNode</code> for the given resource.
-     *
-     * @param resource the resource
-     */
-    public EclipseResourceNode(IResource resource) {
-      super(resource);
-    }
-      
-    // Filter out CVS, bin, and derived resources
-    protected IStructureComparator createChild(IResource child) {
-    	String name = child.getName();
-		if(child.isDerived() || name.equals("bin") || name.equals("CVS"))
+	public static byte[] readBytes(final InputStream in) {
+		final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try {
+			while (true) {
+				final int c = in.read();
+				if (c == -1) {
+					break;
+				}
+				bos.write(c);
+			}
+
+		} catch (final IOException ex) {
 			return null;
-      return new EclipseResourceNode(child);
-    }
-    
-    public void setContent(byte[] contents) {
-      fDirty= true;
-      super.setContent(contents);
-    }
-    
-    /**
-     * Commits buffered contents to resource.
-     */
-    public void commit(IProgressMonitor pm) throws CoreException {
-      if (fDirty) {
-      
-        if (fDeleteFile != null) {
-          fDeleteFile.delete(true, true, pm);
-          return;
-        }
-      
-        IResource resource= getResource();
-        if (resource instanceof IFile) {
-          ByteArrayInputStream is= new ByteArrayInputStream(getContent());
-          try {
-            IFile file= (IFile) resource;
-            if (file.exists())
-              file.setContents(is, false, true, pm);
-            else {
-              createParents(file);
-              file.create(is, false, pm);
-            }
-            fDirty= false;
-          } finally {
-            fireContentChanged();
-            if (is != null)
-              try {
-                is.close();
-              } catch(IOException ex) {
-              }
-          }
-        }
-      }
-    }
-  
-    private void createParents(IResource r) {
-		IContainer p = r.getParent();
-		if(p.getType() == IResource.ROOT) return;
-		if(p instanceof IContainer) {
-			IContainer f = (IContainer)p;
-			if(! f.exists()) {
-				createParents(f);
+
+		} finally {
+			if (in != null) {
 				try {
-					if(f.getType() == IResource.PROJECT) {
-						IProject project = ((IProject)f);
-						project.create(new NullProgressMonitor());
-						project.open(new NullProgressMonitor());
+					in.close();
+				} catch (final IOException x) {
+				}
+			}
+			try {
+				bos.close();
+			} catch (final IOException x) {
+			}
+		}
+		return bos.toByteArray();
+	}
+
+	private boolean fDirty = false;
+
+	private IFile fDeleteFile;
+
+	/**
+	 * Creates a <code>ResourceNode</code> for the given resource.
+	 * 
+	 * @param resource
+	 *            the resource
+	 */
+	public EclipseResourceNode(final IResource resource) {
+		super(resource);
+	}
+
+	/**
+	 * Commits buffered contents to resource.
+	 */
+	public void commit(final IProgressMonitor pm) throws CoreException {
+		if (fDirty) {
+
+			if (fDeleteFile != null) {
+				fDeleteFile.delete(true, true, pm);
+				return;
+			}
+
+			final IResource resource = getResource();
+			if (resource instanceof IFile) {
+				final ByteArrayInputStream is = new ByteArrayInputStream(getContent());
+				try {
+					final IFile file = (IFile) resource;
+					if (file.exists()) {
+						file.setContents(is, false, true, pm);
 					} else {
-						((IFolder)f).create(true, true, new NullProgressMonitor());
+						createParents(file);
+						file.create(is, false, pm);
 					}
-				} catch (CoreException e) {
+					fDirty = false;
+				} finally {
+					fireContentChanged();
+					if (is != null) {
+						try {
+							is.close();
+						} catch (final IOException ex) {
+						}
+					}
 				}
 			}
 		}
 	}
 
-	public ITypedElement replace(ITypedElement child, ITypedElement other) {
-    
-      if (child == null) {  // add resource
-        // create a node without a resource behind it!
-        IResource resource= getResource();
-        if (resource instanceof IContainer) {
-          IContainer folder= (IContainer) resource;
-          if(other.getType() == ITypedElement.FOLDER_TYPE) {
-        	  IResource childResource = null;
-        	  if(folder.getType() == IResource.ROOT)
-        		  childResource = ((IWorkspaceRoot)folder).getProject(other.getName());
-        	  else
-        		  childResource = folder.getFolder(new Path(other.getName()));
-              child= new EclipseResourceNode(childResource);
-          } else {
-        	  IFile file= folder.getFile(new Path(other.getName()));
-              child= new EclipseResourceNode(file);
-          }
-        }
-      }
-    
-      if (other == null) {  // delete resource
-        IResource resource= getResource();
-        if (resource instanceof IFolder) {
-          IFolder folder= (IFolder) resource;
-          IFile file= folder.getFile(child.getName());
-          if (file != null && file.exists()) {
-            fDeleteFile= file;
-            fDirty= true;
-          }
-        }
-        return null;
-      }
-    
-      if (other instanceof IStreamContentAccessor && child instanceof IEditableContent) {
-        IEditableContent dst= (IEditableContent) child;
-      
-        try {
-          InputStream is= ((IStreamContentAccessor)other).getContents();
-          if(is != null) {
-          byte[] bytes= readBytes(is);
-          if (bytes != null)
-            dst.setContent(bytes);
-          }
-        } catch (CoreException ex) {
-        }
-      }
-      fireContentChanged();
-      return child;
-    }
-    
-  public static byte[] readBytes(InputStream in) {
-      ByteArrayOutputStream bos= new ByteArrayOutputStream();
-      try {   
-        while (true) {
-          int c= in.read();
-          if (c == -1)
-            break;
-          bos.write(c);
-        }
-          
-      } catch (IOException ex) {
-        return null;
-    
-      } finally {
-        if (in != null) {
-          try {
-            in.close();
-          } catch (IOException x) {
-          }
-        }
-        try {
-          bos.close();
-        } catch (IOException x) {
-        }
-      }   
-      return bos.toByteArray();
-    }
-  
-  /* (non-Javadoc)
-   * @see org.eclipse.compare.ResourceNode#getContents()
-   */
-  public InputStream getContents() throws CoreException {
-    if(getResource().exists())
-      return super.getContents();
-    return null;
-  }
-    
+	// Filter out CVS, bin, and derived resources
+	protected IStructureComparator createChild(final IResource child) {
+		final String name = child.getName();
+		if (child.isDerived() || name.equals("bin") || name.equals("CVS")) {
+			return null;
+		}
+		return new EclipseResourceNode(child);
+	}
+
+	private void createParents(final IResource r) {
+		final IContainer p = r.getParent();
+		if (p.getType() == IResource.ROOT) {
+			return;
+		}
+		if (p instanceof IContainer) {
+			final IContainer f = p;
+			if (!f.exists()) {
+				createParents(f);
+				try {
+					if (f.getType() == IResource.PROJECT) {
+						final IProject project = ((IProject) f);
+						project.create(new NullProgressMonitor());
+						project.open(new NullProgressMonitor());
+					} else {
+						((IFolder) f).create(true, true, new NullProgressMonitor());
+					}
+				} catch (final CoreException e) {
+				}
+			}
+		}
+	}
+
+	/* (non-Javadoc)
+	   * @see org.eclipse.compare.ResourceNode#getContents()
+	   */
+	public InputStream getContents() throws CoreException {
+		if (getResource().exists()) {
+			return super.getContents();
+		}
+		return null;
+	}
+
+	public ITypedElement replace(ITypedElement child, final ITypedElement other) {
+
+		if (child == null) { // add resource
+			// create a node without a resource behind it!
+			final IResource resource = getResource();
+			if (resource instanceof IContainer) {
+				final IContainer folder = (IContainer) resource;
+				if (other.getType() == ITypedElement.FOLDER_TYPE) {
+					IResource childResource = null;
+					if (folder.getType() == IResource.ROOT) {
+						childResource = ((IWorkspaceRoot) folder).getProject(other.getName());
+					} else {
+						childResource = folder.getFolder(new Path(other.getName()));
+					}
+					child = new EclipseResourceNode(childResource);
+				} else {
+					final IFile file = folder.getFile(new Path(other.getName()));
+					child = new EclipseResourceNode(file);
+				}
+			}
+		}
+
+		if (other == null) { // delete resource
+			final IResource resource = getResource();
+			if (resource instanceof IFolder) {
+				final IFolder folder = (IFolder) resource;
+				final IFile file = folder.getFile(child.getName());
+				if ((file != null) && file.exists()) {
+					fDeleteFile = file;
+					fDirty = true;
+				}
+			}
+			return null;
+		}
+
+		if ((other instanceof IStreamContentAccessor) && (child instanceof IEditableContent)) {
+			final IEditableContent dst = (IEditableContent) child;
+
+			try {
+				final InputStream is = ((IStreamContentAccessor) other).getContents();
+				if (is != null) {
+					final byte[] bytes = readBytes(is);
+					if (bytes != null) {
+						dst.setContent(bytes);
+					}
+				}
+			} catch (final CoreException ex) {
+			}
+		}
+		fireContentChanged();
+		return child;
+	}
+
+	public void setContent(final byte[] contents) {
+		fDirty = true;
+		super.setContent(contents);
+	}
+
 }

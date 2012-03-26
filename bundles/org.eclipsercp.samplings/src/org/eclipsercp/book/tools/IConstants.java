@@ -15,6 +15,5 @@ public interface IConstants {
 	 * Persistant property used to cache the sampel number currently loaded in
 	 * the workspace. The property is stored on each imported project.
 	 */
-	public QualifiedName SAMPLE_NUMBER_KEY = new QualifiedName(
-			"org.eclipsercp.book.tools", "sample-number");
+	public QualifiedName SAMPLE_NUMBER_KEY = new QualifiedName("org.eclipsercp.book.tools", "sample-number");
 }
