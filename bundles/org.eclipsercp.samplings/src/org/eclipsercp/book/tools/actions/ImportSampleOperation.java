@@ -75,7 +75,9 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 			final ILaunchConfiguration[] launchConfigs = mng.getLaunchConfigurations();
 			for (int i = 0; i < launchConfigs.length; i++) {
 				final ILaunchConfiguration configuration = launchConfigs[i];
-				configuration.delete();
+				if (!configuration.isLocal()) {
+					configuration.delete();
+				}
 			}
 		} catch (final CoreException e) {
 			Utils.handleError(shell, e, "Error", "Problems deleting launch configurations");
