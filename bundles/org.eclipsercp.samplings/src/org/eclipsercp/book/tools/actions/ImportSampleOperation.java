@@ -26,6 +26,7 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.IJobManager;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -242,7 +243,7 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 			// HACK - to ensure that the imported projects don't have
 			// compile errors, close and re-open them.
 			try {
-				final IJobManager jobManager = Platform.getJobManager();
+				final IJobManager jobManager = Job.getJobManager();
 				jobManager.join(ResourcesPlugin.FAMILY_MANUAL_BUILD, monitor);
 				jobManager.join(ResourcesPlugin.FAMILY_AUTO_BUILD, monitor);
 
@@ -335,7 +336,7 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 	}
 
 	public boolean promptToOverwrite() {
-		final Preferences prefs = new InstanceScope().getNode(IConstants.PLUGIN_ID);
+		final Preferences prefs = InstanceScope.INSTANCE.getNode(IConstants.PLUGIN_ID);
 		final boolean defaultValue = prefs.getBoolean(IConstants.PROMPT_OVERWRITE_PREF, true);
 		if (!defaultValue) {
 			return true;
@@ -343,7 +344,7 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 		final boolean[] retVal = { false };
 		shell.getDisplay().syncExec(new Runnable() {
 			public void run() {
-				final ScopedPreferenceStore store = new ScopedPreferenceStore(new InstanceScope(), IConstants.PLUGIN_ID);
+				final ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, IConstants.PLUGIN_ID);
 				final Dialog d = MessageDialogWithToggle.openOkCancelConfirm(shell, "Warning", "This will delete all imported projects and in your workspace and replace them with the projects for the selected samples. Are you sure about this?", "Don't show this message again", false, store, IConstants.PROMPT_OVERWRITE_PREF);
 				retVal[0] = d.getReturnCode() == Window.OK;
 				try {
