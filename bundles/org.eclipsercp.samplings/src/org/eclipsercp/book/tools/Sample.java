@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.eclipsercp.book.tools;
 
@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
@@ -16,10 +17,22 @@ public class Sample {
 	public static class ProjectImport {
 		private final Float sampleNumber;
 		private final String projectName;
+		private boolean replace;
 
 		public ProjectImport(final Float sampleNumber, final String projectName) {
 			this.sampleNumber = sampleNumber;
-			this.projectName = projectName;
+			if (projectName.indexOf(';') > -1) {
+				final String[] tokens = projectName.split(";");
+				this.projectName = tokens[0];
+				for (int i = 1; i < tokens.length; i++) {
+					if (tokens[i].equals("noreplace")) {
+						replace = false;
+					}
+				}
+			} else {
+				this.projectName = projectName;
+				replace = true;
+			}
 		}
 
 		public String getProjectName() {
@@ -28,6 +41,10 @@ public class Sample {
 
 		public Float getSampleNumber() {
 			return sampleNumber;
+		}
+
+		public boolean isReplace() {
+			return replace;
 		}
 	}
 
@@ -52,31 +69,35 @@ public class Sample {
 		if (importsLocation == null) {
 			return;
 		}
-		Properties props = null;
+		InputStream in = null;
 		try {
-			props = new Properties() {
-				/** serialVersionUID */
-				private static final long serialVersionUID = 1L;
-
-				public synchronized Object put(final Object key, final Object value) {
+			in = importsLocation.openStream();
+			final Properties props = new Properties();
+			props.load(in);
+			for (final Entry<Object, Object> e : props.entrySet()) {
+				final Object key = e.getKey();
+				if (key.equals("fileToOpen")) {
+					fileToOpen = (String) e.getValue();
+				} else {
 					try {
-						imports.add(new ProjectImport(Float.valueOf((String) key), (String) value));
-					} catch (final NumberFormatException e) {
-						if (key.equals("fileToOpen")) {
-							fileToOpen = (String) value;
-						}
+						imports.add(new ProjectImport(Float.valueOf((String) key), (String) e.getValue()));
+					} catch (final NumberFormatException ignore) {
+						// unsupported key
 					}
-					return null;
 				}
-			};
-			final InputStream in = importsLocation.openStream();
-			try {
-				props.load(in);
-			} finally {
-				in.close();
+
 			}
-		} catch (final IOException e) {
+		} catch (final Exception e) {
+			Utils.handleError(Utils.getActiveShell(), e, "Error", "Unable to read the list of projects to import.");
 			return;
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (final IOException e) {
+					// ignore
+				}
+			}
 		}
 	}
 

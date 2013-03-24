@@ -27,13 +27,17 @@ import java.util.Enumeration;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.PlatformUI;
 
 /**
  * Useful utility methods with no home
@@ -88,6 +92,17 @@ public class Utils {
 	}
 
 	/**
+	 * @return
+	 */
+	public static Shell getActiveShell() {
+		final IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		if (window != null) {
+			return window.getShell();
+		}
+		return PlatformUI.getWorkbench().getDisplay().getActiveShell();
+	}
+
+	/**
 	 * Utility method to handle errors and extract status objects from
 	 * exceptions. An error dialog is shown with the title and message provided
 	 * and possibly with more information from the status objects.
@@ -108,17 +123,19 @@ public class Utils {
 		Throwable t = exception;
 		if (exception instanceof InvocationTargetException) {
 			t = ((InvocationTargetException) exception).getTargetException();
-			if (t instanceof CoreException) {
-				status = ((CoreException) t).getStatus();
-				log = true;
-				dialog = true;
-			} else if (t instanceof InterruptedException) {
-				return;
-			} else {
-				status = new Status(IStatus.ERROR, IConstants.PLUGIN_ID, 1, "Error", t);
-				log = true;
-				dialog = true;
-			}
+		}
+		if (t instanceof CoreException) {
+			status = ((CoreException) t).getStatus();
+			log = true;
+			dialog = true;
+		} else if (t instanceof InterruptedException) {
+			return;
+		} else if (t instanceof OperationCanceledException) {
+			return;
+		} else {
+			status = new Status(IStatus.ERROR, IConstants.PLUGIN_ID, 1, "Error", t);
+			log = true;
+			dialog = true;
 		}
 		if (status == null) {
 			return;
@@ -138,7 +155,19 @@ public class Utils {
 				message = status.getMessage();
 			}
 			if (dialog && (shell != null)) {
-				ErrorDialog.openError(shell, title, message, toShow);
+				if (Display.getCurrent() != null) {
+					ErrorDialog.openError(shell, title, message, toShow);
+				} else {
+					final String title2 = title;
+					final String message2 = message;
+					final IStatus toShow2 = toShow;
+					PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
+						@Override
+						public void run() {
+							ErrorDialog.openError(shell, title2, message2, toShow2);
+						}
+					});
+				}
 			}
 			if (log || (shell == null)) {
 				Platform.getLog(Platform.getBundle(IConstants.PLUGIN_ID)).log(toShow);

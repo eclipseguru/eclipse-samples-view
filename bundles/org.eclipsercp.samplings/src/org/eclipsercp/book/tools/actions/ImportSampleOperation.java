@@ -88,14 +88,23 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 	private boolean deleteProjects(final IProgressMonitor monitor, boolean prompted) throws CoreException {
 		// deletion
 		final IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+		final Sample.ProjectImport[] imports = sample.getImports();
 		final SubProgressMonitor subDeleteMonitor = new SubProgressMonitor(monitor, 30);
 		subDeleteMonitor.beginTask("Deleting projects", projects.length * 100);
-		for (int i = 0; i < projects.length; i++) {
+		NEXT: for (int i = 0; i < projects.length; i++) {
 			final IProject project = projects[i];
 			if (project.isAccessible() && (project.getPersistentProperty(samples.getTagId()) != null)) {
 				if (!prompted && !promptToOverwrite()) {
 					return false;
 				}
+
+				// do not delete imports that should be kept
+				for (final ProjectImport projectImport : imports) {
+					if (project.getName().equals(projectImport.getProjectName()) && !projectImport.isReplace()) {
+						continue NEXT;
+					}
+				}
+
 				prompted = true;
 				project.delete(true, true, new SubProgressMonitor(subDeleteMonitor, 100));
 			}
@@ -143,17 +152,17 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 		final IProject project = workspace.getRoot().getProject(projectName);
 		final IProjectDescription description = workspace.newProjectDescription(projectName);
 		final URL instanceLocation = Platform.getInstanceLocation().getURL();
-		final File projectDir = new File(instanceLocation.getPath(), projectName);
-		projectDir.mkdirs();
 		try {
-			Utils.copy(record, projectDir, true, monitor);
-			description.setLocation(null);
 			if (project.exists()) {
 				if (!project.isOpen()) {
 					project.open(null);
 				}
 				project.delete(true, null);
 			}
+			final File projectDir = new File(instanceLocation.getPath(), projectName);
+			projectDir.mkdirs();
+			Utils.copy(record, projectDir, true, monitor);
+			description.setLocation(null);
 			project.create(description, new SubProgressMonitor(monitor, 1000));
 			if (monitor.isCanceled()) {
 				throw new OperationCanceledException();
@@ -164,7 +173,7 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 			}
 			project.setPersistentProperty(samples.getTagId(), "samples-manager-project");
 		} catch (final Exception e) {
-			Utils.handleError(shell, e, "Error", "Problem importing projects");
+			Utils.handleError(shell, e, "Error", "Problem importing project: " + projectName);
 		}
 
 		return true;
@@ -208,8 +217,11 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 						final IProject current = ResourcesPlugin.getWorkspace().getRoot().getProject(project.location.lastSegment());
 						importedProjects.add(current);
 						if (current.getName().endsWith(prereq.getProjectName())) {
-							if (current.exists() && !current.isOpen()) {
-								current.open(null);
+							if (current.exists() && !prereq.isReplace()) {
+								// keep current but open if necessary
+								if (!current.isOpen()) {
+									current.open(null);
+								}
 							} else {
 								importProject(sample, project, false, new SubProgressMonitor(monitor, 100));
 							}
@@ -314,6 +326,7 @@ public class ImportSampleOperation implements IRunnableWithProgress {
 		}
 
 		final UIJob job = new UIJob("Opening editor") {
+			@Override
 			public IStatus runInUIThread(final IProgressMonitor monitor) {
 				final IFile fileToOpen = ResourcesPlugin.getWorkspace().getRoot().getFile(new Path(sample.getFileToOpen()));
 				if ((fileToOpen == null) || !fileToOpen.exists()) {

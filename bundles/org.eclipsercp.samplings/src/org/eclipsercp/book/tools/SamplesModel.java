@@ -12,7 +12,6 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.QualifiedName;
-import org.eclipse.ui.PlatformUI;
 
 public class SamplesModel {
 
@@ -29,7 +28,7 @@ public class SamplesModel {
 					return new Float(result);
 				}
 			} catch (final CoreException e) {
-				Utils.handleError(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), e, "Error", "Error finding current sample number.");
+				Utils.handleError(Utils.getActiveShell(), e, "Error", "Error finding current sample number.");
 			}
 		}
 		return new Float(1.0);
@@ -44,7 +43,7 @@ public class SamplesModel {
 	}
 
 	/*
-	 * Do a breadth-first search of the given bundle location looking for 
+	 * Do a breadth-first search of the given bundle location looking for
 	 * projects.  Add any discovered projects to the given result.
 	 */
 	private void collectProjectFiles(final SortedMap result, final BundleLocation base, final IProgressMonitor monitor) {
